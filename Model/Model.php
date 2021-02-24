@@ -1,6 +1,5 @@
 <?php
-class Model {
-  
+class Model {  
     public function validaDados($usuario,$senha) {
         
 			/* Aplica a validação ao usuário e senha passados, utilizando as regras de négocio especificas para ele. */

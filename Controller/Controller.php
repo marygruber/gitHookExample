@@ -1,8 +1,11 @@
 <?php
 
+namespace 'githook_v01';
+
 include '/../Model/Model.php';
 
-class Controller{
+class Controller
+{
     public function login()
     {
         /* Pega o usuário e senha preenchidos no formulário de login da View */
