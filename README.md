@@ -1,6 +1,7 @@
 # gitHookExample
 
 Projeto de teste de ferramentas de análise de qualidade de código.
+Não é necessário fazer nenhuma configuração. As ferramentas serão executadas no momento que for realizado o commit de alguma alteração.
 
 As seguintes ferramentas são utilizadas neste projeto:
 * PHP CodeSniffer e PHP Code Beautifier and Fixer (https://github.com/squizlabs/PHP_CodeSniffer)
