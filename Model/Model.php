@@ -1,7 +1,6 @@
 <?php
 
-class Model
-{
+class Model{
     public function validaDados($usuario, $senha)
     {
         $variavelNaoUsada = true;
