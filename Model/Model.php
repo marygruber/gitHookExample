@@ -1,12 +1,13 @@
 <?php
 
-namespace 'githook_v01';
 
-class Model{
+
+class Model
+{
     public function validaDados($usuario, $senha)
     {
-	$variavelNaoUsada = true;
-	
+        $variavelNaoUsada = true;
+
             /* Aplica a validação ao usuário e senha passados, utilizando as regras de négocio especificas para ele. */
         if (strlen($usuario) < 5) {
             return 'Digite o usu&aacute;rio corretamente';
