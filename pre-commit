@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+
+#################
+# Colors
+#################
+color_red='\u001b[31m'
+color_green='\u001b[32m'
+color_yellow='\u001b[33m'
+color_blue='\u001b[34m'
+color_magenta='\u001b[35m'
+color_cyan='\u001b[36m'
+color_white='\u001b[37m'
+color_reset='\u001b[0m'
+
+#################
+# Font Style
+#################
+font_bold='\u001b[1m'
+
+#################
+# Rules and Arguments
+#################
+phpmd_rules="cleancode,codesize,controversial,design,naming,unusedcode"
+php_cs_cbf_common_arguments="--standard=PSR12 --colors --error-severity=0 --tab-width=4 --encoding=utf-8 --extensions=php -d memory_limit=32M -n"
+phpcs_arguments="-s --report=full --report-width=auto"
+
+#################
+# Packages Path
+#################
+phpmd_path="vendor/bin/phpmd"
+phpcs_path="vendor/bin/phpcs"
+phpcbf_path="vendor/bin/phpcbf"
+phpstan_path="vendor/bin/phpstan"
+
+#################
+files=$(git diff --cached --name-only --diff-filter=ACM $against | grep '\.php$')
+project=$(git rev-parse --show-toplevel)
+exitcode=0
+
+function showSuccessMessage() {
+  printf "\n${font_bold}${color_green}🟢 $1 ${color_reset}\n"
+}
+
+function showErrorMessage() {
+  printf "\n${font_bold}${color_red}🔴 $1 ${color_reset}\n"
+}
+
+function showInfoMessage() {
+  printf "\n${font_bold}${color_yellow}🟡 $1 ${color_reset}\n"
+}
+
+function showTitle() {
+  printf "\n-------------------------------------------------------------------------------------\n"
+  printf "${font_bold}${color_cyan}>>>> RUNNING $1 ${color_reset}"
+  printf "\n-------------------------------------------------------------------------------------\n"
+}
+
+function checkPackages() {
+  error=0
+  if [ ! -f "$phpmd_path" ]; then
+    showErrorMessage "No valid PHPMD (Mess Detector) executable found!"
+    error=1
+  fi
+
+  if [ ! -f "$phpcs_path" ]; then
+    showErrorMessage "No valid PHPCS (CodeSniffer) executable found!"
+    error=1
+  fi
+
+  if [ ! -f "$phpcbf_path" ]; then
+    showErrorMessage "No valid PHPCBF (Code Beautifier and Fixer) executable found!"
+    error=1
+  fi
+
+  if [ ! -f "$phpstan_path" ]; then
+    showErrorMessage "No valid PHPStan executable found!"
+    error=1
+  fi
+
+  if [ "$error" == 1 ]; then
+      exit 1
+  fi
+}
+
+function runPHPStan() {
+  # arquivo por arquivo
+  showTitle "PHP STAN"
+  error=0
+  for file in $files; do
+    phpspan_output="$(./$phpstan_path analyse -l 8 $file)"
+
+    if [ -n "$phpstan_output" ]; then
+      printf "${phpstan_output}\n"
+      error=1
+    fi
+  done
+
+  if [ "$error" == 1 ]; then
+      showErrorMessage "Errors Found - PHP Stan"
+      exitcode=1
+  else
+      showSuccessMessage "No PHPStan errors found!"
+  fi
+}
+
+function runPHPCS() {
+  # arquivo por arquivo
+  showTitle "PHP CODE SNIFFER + BEAUTIFIER FIXER"
+  error=0
+  for file in $files; do
+    # Error codes before applying PHPCBF.
+    phpcs_codestyle_errors_before_autofix="$(./$phpcs_path $php_cs_cbf_common_arguments $phpcs_arguments $file)"
+
+    if [ -z "$phpcs_codestyle_errors_before_autofix" ]; then
+        # No errors to fix, skip to next file.
+        continue
+    fi
+
+    # Run PHP Code Beautifier and Fixer the file.
+    # Begin PHP Code Beautifier and Fixer.
+    phpcbf_output="$(phpcbf $php_cs_cbf_common_arguments $file)"
+
+    if [ -n "$phpcbf_output" ]; then
+      # File had some issues but they were automatically fixed.
+      showInfoMessage "Codestyle errors were fixed automatically! Add those changes and commit again."
+      # Display PHPCBF filtered output.
+      printf "${phpcbf_output}\n"
+    fi
+
+    # Run PHP Code Style Check and detect in the fixer was not able to fix code.
+    phpcs_codestyle_errors="$(./$phpcbf_path $php_cs_cbf_common_arguments $phpcs_arguments $file)"
+
+    if [ -n "$phpcs_codestyle_errors" ]; then
+      printf "${phpcs_codestyle_errors}\n"
+      error=1
+      exitcode=1
+    fi
+  done
+
+  if [ "$error" == 1 ]; then
+      showErrorMessage "Errors Found - PHP CodeSniffer + PHP Code Beutifier and Fixer"
+  else
+      showSuccessMessage "No PHPCS + PHPCBF errors found!"
+  fi
+}
+
+function runPHPMD() {
+  showTitle "PHP MESS DETECTOR"
+  # Apenas caminhos e nomes dos arquivos: /path/file.php,/foo/file.php,/bar/file.php
+  for relative_file_path in $files
+  do
+    staged_files="$staged_files $(git rev-parse --show-toplevel)/$relative_file_path"
+    # file_name=$(basename "$relative_file_path")
+    # file_entension=${file_name##*.}
+  done
+
+  # Replace first blank only
+  staged_files=${staged_files/ /''}
+
+  # Separated by spaces
+  staged_files_separated_by_spaces=$staged_files
+
+  # Remove blank spaces with comma
+  # Separated by commas
+  staged_files_separated_by_comma=${staged_files// /,}
+
+  phpmd_output="$(./$phpmd_path ${staged_files_separated_by_comma} text ${phpmd_rules} --suffixes php)"
+  phpmd_retval=$?
+
+  if [ $phpmd_retval -ne 0 ]; then
+    showErrorMessage "PHPMD - PHP Mess Detector found some errors. Fix the errors before commit."
+    printf "${phpmd_output}\n"
+    exitcode=1
+  else
+    showSuccessMessage "No PHPMD errors found!"
+  fi
+}
+
+if [ -n "$files" ]; then
+  checkPackages
+  runPHPCS
+  runPHPStan
+  runPHPMD
+
+  if [ "$exitcode" == 0 ]; then
+      printf "${font_bold}${color_magenta}\n🦄 No errors found! Congrats 👏 👏 👏\n${color_reset}"
+  fi
+fi
+
+exit "$exitcode"
