@@ -6,5 +6,9 @@
             "email": "maryele.gruber@madeiramadeira.com.br"
         }
     ],
-    "require": {}
+    "require-dev": {
+        "squizlabs/php_codesniffer": "*",
+        "phpstan/phpstan": "^0.12.78",
+        "phpmd/phpmd": "^2.9"
+    }
 }
