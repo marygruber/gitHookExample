@@ -1,5 +1,5 @@
 <?php
-
+namespace 'githook_v01';
 class Model
 {
     public function validaDados($usuario, $senha)
